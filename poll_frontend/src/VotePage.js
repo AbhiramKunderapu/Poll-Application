@@ -32,7 +32,7 @@ const VotePage = () => {
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
   const [totalVotes, setTotalVotes] = useState(0);
-  const { getAuthHeaders, user } = useAuth();
+  const { user, getAuthHeaders } = useAuth();
   const [isCreator, setIsCreator] = useState(false);
   const [socket, setSocket] = useState(null);
   const theme = useTheme();
@@ -72,7 +72,9 @@ const VotePage = () => {
     const fetchPoll = async () => {
       try {
         const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
-        const response = await fetch(`${apiUrl}/api/polls/${shareToken}`);
+        const response = await fetch(`${apiUrl}/api/polls/${shareToken}`, {
+          headers: getAuthHeaders() // Using getAuthHeaders here
+        });
         if (!response.ok) {
           throw new Error('Failed to fetch poll');
         }
@@ -96,7 +98,7 @@ const VotePage = () => {
     };
 
     fetchPoll();
-  }, [shareToken, user]);
+  }, [shareToken, user, getAuthHeaders]); // Added getAuthHeaders to dependencies
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -119,6 +121,7 @@ const VotePage = () => {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
+          ...getAuthHeaders() // Using getAuthHeaders here as well
         },
         body: JSON.stringify({
           voter_name: voterName.trim(),
@@ -302,4 +305,4 @@ const VotePage = () => {
   );
 };
 
-export default VotePage; 
+export default VotePage;
