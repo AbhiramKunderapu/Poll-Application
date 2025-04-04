@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   Container,
@@ -27,7 +27,7 @@ const PollList = () => {
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const { getAuthHeaders } = useAuth();
 
-  const fetchPolls = async () => {
+  const fetchPolls = useCallback(async () => {
     try {
       const response = await fetch('http://localhost:5000/api/polls', {
         headers: getAuthHeaders(),
@@ -45,11 +45,11 @@ const PollList = () => {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAuthHeaders]);
 
   useEffect(() => {
     fetchPolls();
-  }, []);
+  }, [fetchPolls]);
 
   const handleDelete = async (pollId) => {
     try {
