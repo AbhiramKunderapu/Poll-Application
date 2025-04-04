@@ -22,7 +22,7 @@ const Register = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:5000/register', {
+      const response = await fetch('http://localhost:5000/api/register', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -88,7 +88,7 @@ const Register = () => {
               color="primary"
               sx={{ mt: 3, mb: 2 }}
             >
-              Register
+              REGISTER
             </Button>
             <Typography align="center">
               Already have an account?{' '}

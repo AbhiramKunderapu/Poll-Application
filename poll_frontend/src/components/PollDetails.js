@@ -28,7 +28,7 @@ const PollDetails = () => {
     
     const fetchPollDetails = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/poll_details/${pollId}`, {
+        const response = await fetch(`http://localhost:5000/api/polls/${pollId}/details`, {
           headers: getAuthHeaders(),
         });
         const data = await response.json();

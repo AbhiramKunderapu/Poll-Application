@@ -12,7 +12,7 @@ import {
 } from '@mui/material';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
+  const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const navigate = useNavigate();
@@ -23,12 +23,12 @@ const Login = () => {
     setError('');
 
     try {
-      const response = await fetch('http://localhost:5000/login', {
+      const response = await fetch('http://localhost:5000/api/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ username, password }),
       });
 
       const data = await response.json();
@@ -62,10 +62,9 @@ const Login = () => {
           <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
-              label="Email"
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
+              label="Username"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
               margin="normal"
               required
             />
@@ -85,7 +84,7 @@ const Login = () => {
               color="primary"
               sx={{ mt: 3, mb: 2 }}
             >
-              Login
+              LOGIN
             </Button>
             <Typography align="center">
               Don't have an account?{' '}

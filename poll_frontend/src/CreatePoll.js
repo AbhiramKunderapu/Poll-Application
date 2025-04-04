@@ -14,6 +14,8 @@ import {
   DialogContent,
   DialogActions,
   InputAdornment,
+  FormControlLabel,
+  Switch,
 } from '@mui/material';
 import AddIcon from '@mui/icons-material/Add';
 import DeleteIcon from '@mui/icons-material/Delete';
@@ -21,10 +23,13 @@ import ContentCopyIcon from '@mui/icons-material/ContentCopy';
 import { useAuth } from './context/AuthContext';
 
 const CreatePoll = () => {
+  const [title, setTitle] = useState('');
   const [question, setQuestion] = useState('');
   const [options, setOptions] = useState(['', '']);
+  const [endDate, setEndDate] = useState('');
   const [error, setError] = useState('');
   const [shareDialog, setShareDialog] = useState({ open: false, url: '' });
+  const [showResultsToVoters, setShowResultsToVoters] = useState(false);
   const navigate = useNavigate();
   const { getAuthHeaders } = useAuth();
 
@@ -50,6 +55,11 @@ const CreatePoll = () => {
     setError('');
 
     // Validate inputs
+    if (!title.trim()) {
+      setError('Please enter a title');
+      return;
+    }
+
     if (!question.trim()) {
       setError('Please enter a question');
       return;
@@ -62,21 +72,24 @@ const CreatePoll = () => {
     }
 
     try {
-      const response = await fetch('http://localhost:5000/create_poll', {
+      const response = await fetch('http://localhost:5000/api/polls', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           ...getAuthHeaders(),
         },
         body: JSON.stringify({
+          title: title.trim(),
           question: question.trim(),
           options: validOptions,
+          end_date: endDate || null,
+          show_results_to_voters: showResultsToVoters,
         }),
       });
 
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.ok && data.success) {
         const shareUrl = `${window.location.origin}/poll/${data.share_token}`;
         setShareDialog({ open: true, url: shareUrl });
       } else {
@@ -84,6 +97,7 @@ const CreatePoll = () => {
       }
     } catch (err) {
       setError('Failed to connect to server');
+      console.error('Error creating poll:', err);
     }
   };
 
@@ -117,11 +131,50 @@ const CreatePoll = () => {
           <form onSubmit={handleSubmit}>
             <TextField
               fullWidth
+              label="Title"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              margin="normal"
+              required
+              placeholder="Enter a title for your poll"
+            />
+
+            <TextField
+              fullWidth
               label="Question"
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
               margin="normal"
               required
+              placeholder="Enter your question"
+            />
+
+            <TextField
+              fullWidth
+              label="End Date (Optional) - Poll will end at 11:59 PM"
+              type="date"
+              value={endDate}
+              onChange={(e) => setEndDate(e.target.value)}
+              margin="normal"
+              InputLabelProps={{
+                shrink: true,
+              }}
+              inputProps={{
+                min: new Date().toISOString().split('T')[0],
+              }}
+              helperText="If set, the poll will remain active until 11:59 PM on the selected date"
+            />
+
+            <FormControlLabel
+              control={
+                <Switch
+                  checked={showResultsToVoters}
+                  onChange={(e) => setShowResultsToVoters(e.target.checked)}
+                  color="primary"
+                />
+              }
+              label="Allow voters to see results after voting"
+              sx={{ mt: 2, mb: 1 }}
             />
 
             {options.map((option, index) => (

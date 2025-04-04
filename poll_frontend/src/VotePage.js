@@ -12,7 +12,14 @@ import {
   Button,
   CircularProgress,
   Alert,
+  LinearProgress,
+  Fade,
+  Divider,
+  useTheme
 } from '@mui/material';
+import { useAuth } from './context/AuthContext';
+import io from 'socket.io-client';
+import HowToVoteIcon from '@mui/icons-material/HowToVote';
 
 const VotePage = () => {
   const { shareToken } = useParams();
@@ -24,20 +31,64 @@ const VotePage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+  const [totalVotes, setTotalVotes] = useState(0);
+  const { getAuthHeaders, user } = useAuth();
+  const [isCreator, setIsCreator] = useState(false);
+  const [socket, setSocket] = useState(null);
+  const theme = useTheme();
+
+  // Initialize socket connection
+  useEffect(() => {
+    const socketUrl = process.env.REACT_APP_SOCKET_URL || 'http://localhost:5000';
+    const newSocket = io(socketUrl);
+    setSocket(newSocket);
+
+    return () => {
+      if (newSocket) {
+        newSocket.disconnect();
+      }
+    };
+  }, []);
+
+  // Handle real-time updates
+  useEffect(() => {
+    if (!socket) return;
+
+    socket.on('vote_update', (data) => {
+      if (data.share_token === shareToken) {
+        setOptions(data.options);
+        setTotalVotes(data.total_votes);
+      }
+    });
+
+    return () => {
+      if (socket) {
+        socket.off('vote_update');
+      }
+    };
+  }, [socket, shareToken]);
 
   useEffect(() => {
     const fetchPoll = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/poll/${shareToken}`);
+        const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+        const response = await fetch(`${apiUrl}/api/polls/${shareToken}`);
+        if (!response.ok) {
+          throw new Error('Failed to fetch poll');
+        }
         const data = await response.json();
         
-        if (response.ok) {
+        if (data.success) {
           setPoll(data.poll);
           setOptions(data.options);
+          setTotalVotes(data.total_votes);
+          // Check if current user is the creator
+          setIsCreator(user && data.poll.user_id === user.id);
         } else {
-          setError('Poll not found');
+          setError(data.message || 'Poll not found');
         }
       } catch (err) {
+        console.error('Error fetching poll:', err);
         setError('Failed to load poll');
       } finally {
         setLoading(false);
@@ -45,7 +96,7 @@ const VotePage = () => {
     };
 
     fetchPoll();
-  }, [shareToken]);
+  }, [shareToken, user]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -57,34 +108,48 @@ const VotePage = () => {
       return;
     }
 
+    if (!voterName.trim() || !voterEmail.trim()) {
+      setError('Please enter your name and email');
+      return;
+    }
+
     try {
-      const response = await fetch(`http://localhost:5000/vote/${shareToken}`, {
+      const apiUrl = process.env.REACT_APP_API_URL || 'http://localhost:5000';
+      const response = await fetch(`${apiUrl}/api/polls/${shareToken}/vote`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          option_id: selectedOption,
-          voter_name: voterName,
-          voter_email: voterEmail,
+          voter_name: voterName.trim(),
+          voter_email: voterEmail.trim(),
+          selected_option: parseInt(selectedOption, 10),
         }),
       });
 
       const data = await response.json();
 
-      if (response.ok) {
+      if (response.ok && data.success) {
         setSuccess('Thank you for voting!');
-        // Refresh poll data to show updated votes
-        const pollResponse = await fetch(`http://localhost:5000/poll/${shareToken}`);
-        const pollData = await pollResponse.json();
-        setOptions(pollData.options);
+        setOptions(data.options);
+        setTotalVotes(data.total_votes);
       } else {
-        setError(data.message || 'Failed to submit vote');
+        // Handle specific error cases
+        if (data.message === 'You have already voted on this poll') {
+          setError('You have already voted on this poll. Each email address can only vote once.');
+        } else if (data.message === 'This poll has ended') {
+          setError('This poll has ended. Voting is no longer allowed.');
+        } else {
+          setError(data.message || 'Failed to submit vote');
+        }
       }
     } catch (err) {
-      setError('Failed to connect to server');
+      console.error('Error submitting vote:', err);
+      setError('Failed to connect to server. Please try again later.');
     }
   };
+
+  const shouldShowResults = isCreator || (success && poll?.show_results_to_voters);
 
   if (loading) {
     return (
@@ -107,23 +172,51 @@ const VotePage = () => {
   return (
     <Container maxWidth="sm">
       <Box sx={{ mt: 4, mb: 4 }}>
-        <Paper elevation={3} sx={{ p: 4 }}>
-          <Typography variant="h4" gutterBottom>
-            {poll.question}
-          </Typography>
+        <Paper elevation={3} sx={{ p: 4, borderRadius: 2 }}>
+          <Box display="flex" alignItems="center" mb={2}>
+            <HowToVoteIcon sx={{ mr: 1, color: theme.palette.primary.main }} />
+            <Typography variant="h4" gutterBottom sx={{ mb: 0 }}>
+              {poll.question}
+            </Typography>
+          </Box>
           <Typography variant="subtitle1" color="textSecondary" gutterBottom>
             Created by {poll.creator_name}
           </Typography>
+          {poll.end_date && (
+            <Typography variant="subtitle2" color="textSecondary" gutterBottom>
+              Ends on: {new Date(poll.end_date).toLocaleDateString()} at 11:59 PM
+            </Typography>
+          )}
+          {shouldShowResults && (
+            <Box sx={{ backgroundColor: theme.palette.background.default, p: 1, borderRadius: 1, mt: 1, mb: 2 }}>
+              <Typography variant="subtitle2" color="textSecondary">
+                Total Votes: <strong>{totalVotes}</strong>
+              </Typography>
+            </Box>
+          )}
+
+          <Divider sx={{ my: 2 }} />
 
           {error && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {error}
-            </Alert>
+            <Fade in={!!error}>
+              <Alert severity="error" sx={{ mb: 2, mt: 2 }}>
+                {error}
+              </Alert>
+            </Fade>
           )}
-          {success && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              {success}
-            </Alert>
+          {success && !poll.show_results_to_voters && !isCreator && (
+            <Fade in={!!success}>
+              <Alert severity="info" sx={{ mb: 2, mt: 2 }}>
+                Thank you for voting! The poll creator has chosen to keep the results private.
+              </Alert>
+            </Fade>
+          )}
+          {success && (poll.show_results_to_voters || isCreator) && (
+            <Fade in={!!success}>
+              <Alert severity="success" sx={{ mb: 2, mt: 2 }}>
+                Thank you for voting! You can see the current results below.
+              </Alert>
+            </Fade>
           )}
 
           <form onSubmit={handleSubmit}>
@@ -132,61 +225,76 @@ const VotePage = () => {
               onChange={(e) => setSelectedOption(e.target.value)}
             >
               {options.map((option) => (
-                <FormControlLabel
-                  key={option.id}
-                  value={option.id.toString()}
-                  control={<Radio />}
-                  label={
-                    <Box>
-                      <Typography>
-                        {option.option_text}
-                        {success && (
-                          <Typography
-                            component="span"
-                            color="textSecondary"
-                            sx={{ ml: 2 }}
-                          >
-                            ({option.votes} votes)
+                <Box key={option.id} sx={{ mb: 3, p: 1, borderRadius: 1, '&:hover': { backgroundColor: theme.palette.background.default } }}>
+                  <FormControlLabel
+                    value={option.id.toString()}
+                    control={<Radio color="primary" />}
+                    label={<Typography fontWeight={500}>{option.option_text}</Typography>}
+                  />
+                  {shouldShowResults && (
+                    <Fade in={shouldShowResults} timeout={800}>
+                      <Box sx={{ mt: 1 }}>
+                        <Box display="flex" alignItems="center" justifyContent="space-between">
+                          <Typography variant="body2" color="textSecondary">
+                            {option.votes} votes ({option.percentage}%)
                           </Typography>
-                        )}
-                      </Typography>
-                    </Box>
-                  }
-                />
+                        </Box>
+                        <LinearProgress
+                          variant="determinate"
+                          value={option.percentage}
+                          sx={{ 
+                            mt: 0.5, 
+                            height: 10, 
+                            borderRadius: 5,
+                            backgroundColor: theme.palette.grey[200],
+                            '& .MuiLinearProgress-bar': {
+                              borderRadius: 5,
+                              backgroundColor: theme.palette.primary.main,
+                            }
+                          }}
+                        />
+                      </Box>
+                    </Fade>
+                  )}
+                </Box>
               ))}
             </RadioGroup>
 
-            <Box sx={{ mt: 3 }}>
-              <TextField
-                fullWidth
-                label="Your Name"
-                value={voterName}
-                onChange={(e) => setVoterName(e.target.value)}
-                margin="normal"
-                required
-                disabled={!!success}
-              />
-              <TextField
-                fullWidth
-                label="Your Email"
-                type="email"
-                value={voterEmail}
-                onChange={(e) => setVoterEmail(e.target.value)}
-                margin="normal"
-                required
-                disabled={!!success}
-              />
-              <Button
-                type="submit"
-                fullWidth
-                variant="contained"
-                color="primary"
-                sx={{ mt: 2 }}
-                disabled={!!success}
-              >
-                Submit Vote
-              </Button>
-            </Box>
+            {!success && (
+              <Fade in={!success}>
+                <Box sx={{ mt: 3 }}>
+                  <TextField
+                    fullWidth
+                    label="Your Name"
+                    value={voterName}
+                    onChange={(e) => setVoterName(e.target.value)}
+                    margin="normal"
+                    required
+                    variant="outlined"
+                  />
+                  <TextField
+                    fullWidth
+                    label="Your Email"
+                    type="email"
+                    value={voterEmail}
+                    onChange={(e) => setVoterEmail(e.target.value)}
+                    margin="normal"
+                    required
+                    variant="outlined"
+                  />
+                  <Button
+                    type="submit"
+                    variant="contained"
+                    color="primary"
+                    fullWidth
+                    size="large"
+                    sx={{ mt: 3, mb: 2, py: 1.2 }}
+                  >
+                    Submit Vote
+                  </Button>
+                </Box>
+              </Fade>
+            )}
           </form>
         </Paper>
       </Box>

@@ -12,9 +12,12 @@ CREATE TABLE users (
 
 CREATE TABLE polls (
   id INT AUTO_INCREMENT PRIMARY KEY,
+  title VARCHAR(255) NOT NULL,
   question VARCHAR(255) NOT NULL,
   user_id INT NOT NULL,
   share_token VARCHAR(64) UNIQUE,
+  end_date DATETIME,
+  show_results_to_voters BOOLEAN DEFAULT FALSE,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
 );

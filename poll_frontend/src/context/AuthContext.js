@@ -31,7 +31,10 @@ export const AuthProvider = ({ children }) => {
 
   const getAuthHeaders = () => {
     const token = localStorage.getItem('token');
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    return {
+      'Content-Type': 'application/json',
+      ...(token ? { 'Authorization': `Bearer ${token}` } : {})
+    };
   };
 
   return (

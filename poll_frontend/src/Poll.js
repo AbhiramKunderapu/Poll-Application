@@ -11,7 +11,7 @@ function Poll() {
 
   useEffect(() => {
     // Fetch poll data from backend
-    axios.get(`http://127.0.0.1:5000/poll/${pollId}`)
+    axios.get(`http://127.0.0.1:5000/api/polls/${pollId}`)
       .then(res => setPoll(res.data))
       .catch(err => console.error("Error fetching poll:", err));
   }, [pollId]);
@@ -26,7 +26,11 @@ function Poll() {
       return;
     }
 
-    axios.post('http://127.0.0.1:5000/vote', { option_id: selectedOption })
+    axios.post(`http://127.0.0.1:5000/api/polls/${pollId}/vote`, { 
+      selected_option: selectedOption,
+      voter_name: "Anonymous",
+      voter_email: "anonymous@example.com"
+    })
       .then(() => {
         alert('Vote submitted successfully!');
         navigate('/'); // Redirect to home page (All Polls)

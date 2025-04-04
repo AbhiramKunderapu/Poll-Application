@@ -52,7 +52,7 @@ const PollView = () => {
 
     const fetchPollData = async () => {
       try {
-        const response = await fetch(`http://localhost:5000/poll/${shareToken}`);
+        const response = await fetch(`http://localhost:5000/api/polls/${shareToken}`);
         const data = await response.json();
 
         if (response.ok) {
@@ -94,13 +94,13 @@ const PollView = () => {
     }
 
     try {
-      const response = await fetch(`http://localhost:5000/vote/${shareToken}`, {
+      const response = await fetch(`http://localhost:5000/api/polls/${shareToken}/vote`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         body: JSON.stringify({
-          option_id: selectedOption,
+          selected_option: selectedOption,
           voter_name: voterName,
           voter_email: voterEmail,
         }),

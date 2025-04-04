@@ -24,22 +24,23 @@ const PollList = () => {
   const [polls, setPolls] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [snackbar, setSnackbar] = useState({ open: false, message: '' });
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' });
   const { getAuthHeaders } = useAuth();
 
   const fetchPolls = async () => {
     try {
-      const response = await fetch('http://localhost:5000/polls', {
+      const response = await fetch('http://localhost:5000/api/polls', {
         headers: getAuthHeaders(),
       });
       const data = await response.json();
       
-      if (response.ok) {
-        setPolls(data);
+      if (response.ok && data.success) {
+        setPolls(data.polls || []);
       } else {
-        setError('Failed to load polls');
+        setError(data.message || 'Failed to load polls');
       }
     } catch (err) {
+      console.error('Error fetching polls:', err);
       setError('Failed to connect to server');
     } finally {
       setLoading(false);
@@ -52,26 +53,33 @@ const PollList = () => {
 
   const handleDelete = async (pollId) => {
     try {
-      const response = await fetch(`http://localhost:5000/delete_poll/${pollId}`, {
+      const response = await fetch(`http://localhost:5000/api/polls/${pollId}`, {
         method: 'DELETE',
         headers: getAuthHeaders(),
       });
 
-      if (response.ok) {
+      const data = await response.json();
+      if (response.ok && data.success) {
         setPolls(polls.filter(poll => poll.id !== pollId));
-        setSnackbar({ open: true, message: 'Poll deleted successfully' });
+        setSnackbar({ open: true, message: 'Poll deleted successfully', severity: 'success' });
       } else {
-        setSnackbar({ open: true, message: 'Failed to delete poll' });
+        setSnackbar({ open: true, message: data.message || 'Failed to delete poll', severity: 'error' });
       }
     } catch (err) {
-      setSnackbar({ open: true, message: 'Failed to connect to server' });
+      console.error('Error deleting poll:', err);
+      setSnackbar({ open: true, message: 'Failed to connect to server', severity: 'error' });
     }
   };
 
   const handleShare = async (poll) => {
     const shareUrl = `${window.location.origin}/poll/${poll.share_token}`;
-    await navigator.clipboard.writeText(shareUrl);
-    setSnackbar({ open: true, message: 'Share link copied to clipboard!' });
+    try {
+      await navigator.clipboard.writeText(shareUrl);
+      setSnackbar({ open: true, message: 'Share link copied to clipboard!', severity: 'success' });
+    } catch (err) {
+      console.error('Error copying to clipboard:', err);
+      setSnackbar({ open: true, message: 'Failed to copy link', severity: 'error' });
+    }
   };
 
   const handleViewDetails = (pollId) => {
@@ -86,16 +94,6 @@ const PollList = () => {
     );
   }
 
-  if (error) {
-    return (
-      <Container maxWidth="md">
-        <Alert severity="error" sx={{ mt: 4 }}>
-          {error}
-        </Alert>
-      </Container>
-    );
-  }
-
   return (
     <Container maxWidth="md">
       <Box sx={{ mt: 4, mb: 4 }}>
@@ -103,10 +101,26 @@ const PollList = () => {
           My Polls
         </Typography>
 
+        {error && (
+          <Alert severity="error" sx={{ mb: 3 }}>
+            {error}
+          </Alert>
+        )}
+
         {polls.length === 0 ? (
-          <Typography variant="body1" color="textSecondary" align="center" sx={{ mt: 4 }}>
-            You haven't created any polls yet.
-          </Typography>
+          <Box textAlign="center" mt={4}>
+            <Typography variant="body1" color="textSecondary" gutterBottom>
+              You haven't created any polls yet.
+            </Typography>
+            <Button
+              variant="contained"
+              color="primary"
+              onClick={() => navigate('/create')}
+              sx={{ mt: 2 }}
+            >
+              Create Your First Poll
+            </Button>
+          </Box>
         ) : (
           <Grid container spacing={3}>
             {polls.map((poll) => (
@@ -116,6 +130,9 @@ const PollList = () => {
                     <Box display="flex" justifyContent="space-between" alignItems="flex-start">
                       <Box>
                         <Typography variant="h6" gutterBottom>
+                          {poll.title}
+                        </Typography>
+                        <Typography variant="body1" color="textSecondary" gutterBottom>
                           {poll.question}
                         </Typography>
                         <Typography variant="body2" color="textSecondary">
@@ -124,6 +141,11 @@ const PollList = () => {
                         <Typography variant="body2" color="textSecondary">
                           Options: {poll.option_count}
                         </Typography>
+                        {poll.end_date && (
+                          <Typography variant="body2" color="textSecondary">
+                            Ends: {new Date(poll.end_date).toLocaleDateString()} at 11:59 PM
+                          </Typography>
+                        )}
                         <Typography variant="caption" color="textSecondary" display="block">
                           Created: {new Date(poll.created_at).toLocaleDateString()}
                         </Typography>
@@ -161,7 +183,7 @@ const PollList = () => {
       >
         <Alert
           onClose={() => setSnackbar({ ...snackbar, open: false })}
-          severity="success"
+          severity={snackbar.severity}
           sx={{ width: '100%' }}
         >
           {snackbar.message}

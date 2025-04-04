@@ -41,9 +41,11 @@ def setup_database():
         tables['polls'] = (
             "CREATE TABLE IF NOT EXISTS polls ("
             "  id INT AUTO_INCREMENT PRIMARY KEY,"
+            "  title VARCHAR(255) NOT NULL,"
             "  question TEXT NOT NULL,"
             "  user_id INT NOT NULL,"
             "  share_token VARCHAR(255) NOT NULL UNIQUE,"
+            "  end_date DATE,"
             "  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,"
             "  FOREIGN KEY (user_id) REFERENCES users(id)"
             ")"
