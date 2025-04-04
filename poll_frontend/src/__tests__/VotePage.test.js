@@ -27,14 +27,13 @@ jest.mock('socket.io-client', () => {
 global.fetch = jest.fn();
 
 // Create a function to render with router and auth
-const renderWithProviders = (ui, { route = '/vote/abc123', user = null } = {}) => {
+const renderWithProviders = (ui = <VotePage />, { route = '/vote/abc123', user = null } = {}) => {
   window.history.pushState({}, 'Test page', route);
-  
   return render(
-    <AuthProvider>
+    <AuthProvider initialUser={user}>
       <BrowserRouter>
         <Routes>
-          <Route path="/vote/:shareToken" element={ui} />
+          <Route path="*" element={ui} />
         </Routes>
       </BrowserRouter>
     </AuthProvider>
@@ -94,9 +93,19 @@ describe('VotePage Component', () => {
 
   test('renders loading state initially', async () => {
     // Mock the initial fetch to delay response
-    fetch.mockImplementationOnce(() => new Promise(resolve => setTimeout(resolve, 100)));
+    fetch.mockImplementationOnce(() => 
+      new Promise(resolve => 
+        setTimeout(() => 
+          resolve({
+            ok: true,
+            json: async () => mockPollData
+          }), 
+          100
+        )
+      )
+    );
     
-    renderWithProviders(<VotePage />);
+    renderWithProviders();
     
     // Check for loading state
     expect(screen.getByRole('progressbar')).toBeInTheDocument();
@@ -129,9 +138,6 @@ describe('VotePage Component', () => {
     expect(screen.getByText(/Created by Test Creator/)).toBeInTheDocument();
     expect(screen.getByText(/Ends on: 31\/12\/2024 at 11:59 PM/)).toBeInTheDocument();
     
-    // The Total Votes element might not be visible in all conditions, so we'll skip this check
-    // and focus on the essential elements that must be present
-    
     expect(screen.getByLabelText('Option 1')).toBeInTheDocument();
     expect(screen.getByLabelText('Option 2')).toBeInTheDocument();
   });
@@ -157,7 +163,7 @@ describe('VotePage Component', () => {
       }),
     });
     
-    renderWithProviders(<VotePage />);
+    renderWithProviders();
     
     // Wait for the poll to load
     await waitFor(() => {
@@ -208,7 +214,7 @@ describe('VotePage Component', () => {
       json: async () => mockPollData,
     });
     
-    renderWithProviders(<VotePage />);
+    renderWithProviders();
     
     // Wait for the poll to load
     await waitFor(() => {
@@ -251,7 +257,7 @@ describe('VotePage Component', () => {
       json: async () => ({ success: false, message: 'You have already voted in this poll' }),
     });
     
-    renderWithProviders(<VotePage />);
+    renderWithProviders();
     
     // Wait for the poll to load
     await waitFor(() => {
@@ -279,23 +285,61 @@ describe('VotePage Component', () => {
     });
   });
 
+  test('handles network error on vote submission', async () => {
+    // First fetch gets poll data
+    fetch.mockResolvedValueOnce({
+      ok: true,
+      json: async () => mockPollData,
+    });
+
+    // Second fetch simulates a network error
+    fetch.mockRejectedValueOnce(new Error('Network error'));
+
+    renderWithProviders();
+
+    // Wait for the poll to load
+    await waitFor(() => {
+      expect(screen.queryByRole('progressbar')).not.toBeInTheDocument();
+    });
+
+    // Fill out the voting form
+    fireEvent.change(screen.getByLabelText(/your name/i), {
+      target: { value: 'John Doe' },
+    });
+    
+    fireEvent.change(screen.getByLabelText(/your email/i), {
+      target: { value: 'john@example.com' },
+    });
+
+    // Select an option
+    fireEvent.click(screen.getByLabelText('Option 1'));
+
+    // Submit the form
+    fireEvent.click(screen.getByRole('button', { name: /submit vote/i }));
+
+    // Check for error message
+    await waitFor(() => {
+      expect(screen.getByText(/failed to connect to server/i)).toBeInTheDocument();
+    });
+  });
+
   test('renders poll with hidden results for non-creator when show_results_to_voters is false', async () => {
     const pollDataWithHiddenResults = {
       ...mockPollData,
       poll: { ...mockPollData.poll, show_results_to_voters: false }
     };
-
+    
     fetch.mockResolvedValueOnce({
       ok: true,
       json: async () => pollDataWithHiddenResults,
     });
-
-    renderWithProviders(<VotePage />);
-
+    
+    renderWithProviders();
+    
     await waitFor(() => {
       expect(screen.getByText('Test Question?')).toBeInTheDocument();
     });
-
+    
     // Results should be hidden
     expect(screen.queryByText(/5 votes/)).not.toBeInTheDocument();
     expect(screen.queryByText(/50%/)).not.toBeInTheDocument();
@@ -306,22 +350,22 @@ describe('VotePage Component', () => {
       ...mockPollData,
       poll: { ...mockPollData.poll, show_results_to_voters: false }
     };
-
+    
     // Mock successful fetch response
     fetch.mockResolvedValueOnce({
       ok: true,
       json: async () => pollDataWithHiddenResults,
     });
-
+    
     // Mock useAuth to return a user with id 1
     renderWithProviders(<VotePage />, {
       user: { id: 1 } // Same as poll.user_id
     });
-
+    
     await waitFor(() => {
       expect(screen.getByText('Test Question?')).toBeInTheDocument();
     });
-
+    
     // Instead of looking for specific text, check if the radio buttons for options are rendered
     expect(screen.getByLabelText('Option 1')).toBeInTheDocument();
     expect(screen.getByLabelText('Option 2')).toBeInTheDocument();
@@ -336,7 +380,7 @@ describe('VotePage Component', () => {
       ok: true,
       json: async () => mockPollData,
     });
-
+    
     // Mock successful vote
     fetch.mockResolvedValueOnce({
       ok: true,
@@ -347,23 +391,26 @@ describe('VotePage Component', () => {
         total_votes: mockPollData.total_votes
       }),
     });
-
-    renderWithProviders(<VotePage />);
-
+    
+    renderWithProviders();
+    
     await waitFor(() => {
       expect(screen.getByText('Test Question?')).toBeInTheDocument();
     });
-
+    
     // Submit vote
     fireEvent.click(screen.getByLabelText('Option 1'));
+    
     fireEvent.change(screen.getByLabelText(/your name/i), {
       target: { value: 'Test Voter' },
     });
+    
     fireEvent.change(screen.getByLabelText(/your email/i), {
       target: { value: 'test@example.com' },
     });
+    
     fireEvent.click(screen.getByText(/submit vote/i));
-
+    
     // Results should be visible after voting
     await waitFor(() => {
       // Check for success message
@@ -371,7 +418,7 @@ describe('VotePage Component', () => {
       
       // Check for vote counts - using a more flexible approach
       const voteElements = screen.getAllByText((content, element) => {
-        return element.textContent.includes('votes') || 
+        return element.textContent.includes('votes') ||
                element.textContent.includes('50%');
       }, { exact: false });
       
@@ -387,12 +434,12 @@ describe('VotePage Component', () => {
         end_date: '2023-01-01' // Past date
       }
     };
-
+    
     fetch.mockResolvedValueOnce({
       ok: true,
       json: async () => endedPollData,
     });
-
+    
     // Mock failed vote due to ended poll
     fetch.mockResolvedValueOnce({
       ok: false,
@@ -402,22 +449,25 @@ describe('VotePage Component', () => {
       }),
     });
     
-    renderWithProviders(<VotePage />);
-
+    renderWithProviders();
+    
     await waitFor(() => {
       expect(screen.getByText('Test Question?')).toBeInTheDocument();
     });
-
+    
     // Try to vote
     fireEvent.click(screen.getByLabelText('Option 1'));
+    
     fireEvent.change(screen.getByLabelText(/your name/i), {
       target: { value: 'Test Voter' },
     });
+    
     fireEvent.change(screen.getByLabelText(/your email/i), {
       target: { value: 'test@example.com' },
     });
+    
     fireEvent.click(screen.getByText(/submit vote/i));
-
+    
     // Should show error message - using a more robust approach
     await waitFor(() => {
       // Find any alert that includes the text about poll ending
@@ -430,4 +480,4 @@ describe('VotePage Component', () => {
       expect(errorElements.length).toBeGreaterThan(0);
     });
   });
-}); 
+});
