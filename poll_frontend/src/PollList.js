@@ -32,6 +32,11 @@ const PollList = () => {
       const response = await fetch('http://localhost:5000/api/polls', {
         headers: getAuthHeaders(),
       });
+      
+      if (!response) {
+        throw new Error('No response from server');
+      }
+      
       const data = await response.json();
       
       if (response.ok && data.success) {
@@ -152,19 +157,34 @@ const PollList = () => {
                       </Box>
                       <Box>
                         <Tooltip title="View Details">
-                          <IconButton onClick={() => handleViewDetails(poll.id)} color="primary">
+                          <IconButton 
+                            onClick={() => handleViewDetails(poll.id)} 
+                            color="primary"
+                            aria-label="View Details"
+                            data-testid={`view-button-${poll.id}`}
+                          >
                             <VisibilityIcon />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Share Poll">
-                          <IconButton onClick={() => handleShare(poll)} color="primary">
+                          <IconButton 
+                            onClick={() => handleShare(poll)} 
+                            color="primary"
+                            aria-label="Share Poll"
+                            data-testid={`share-button-${poll.id}`}
+                          >
                             <ShareIcon />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Delete Poll">
-                          <IconButton onClick={() => handleDelete(poll.id)} color="error">
-                            <DeleteIcon />
-                          </IconButton>
+                        <IconButton
+                          onClick={() => handleDelete(poll.id)}
+                          color="error"
+                          aria-label="Delete Poll"
+                          data-testid={`delete-button-${poll.id}`}
+                        >
+                          <DeleteIcon />
+                         </IconButton>
                         </Tooltip>
                       </Box>
                     </Box>
