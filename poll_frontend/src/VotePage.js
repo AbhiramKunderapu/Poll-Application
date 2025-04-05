@@ -75,9 +75,16 @@ const VotePage = () => {
         const response = await fetch(`${apiUrl}/api/polls/${shareToken}`, {
           headers: getAuthHeaders() // Using getAuthHeaders here
         });
+        
+        // Check if response is undefined
+        if (!response) {
+          throw new Error('No response from server');
+        }
+        
         if (!response.ok) {
           throw new Error('Failed to fetch poll');
         }
+        
         const data = await response.json();
         
         if (data.success) {
@@ -130,6 +137,11 @@ const VotePage = () => {
         }),
       });
 
+      // Check if response is undefined
+      if (!response) {
+        throw new Error('No response from server');
+      }
+      
       const data = await response.json();
 
       if (response.ok && data.success) {
@@ -138,7 +150,8 @@ const VotePage = () => {
         setTotalVotes(data.total_votes);
       } else {
         // Handle specific error cases
-        if (data.message === 'You have already voted on this poll') {
+        if (data.message === 'You have already voted in this poll' || 
+            data.message === 'You have already voted on this poll') {
           setError('You have already voted on this poll. Each email address can only vote once.');
         } else if (data.message === 'This poll has ended') {
           setError('This poll has ended. Voting is no longer allowed.');
