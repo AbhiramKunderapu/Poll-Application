@@ -19,7 +19,7 @@
     "start": "react-scripts start",
     "build": "react-scripts build",
     "test": "react-scripts test",
-    "test:nowatch": "react-scripts test --watchAll=false",
+    "coverage": "react-scripts test --coverage --watchAll=false",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
@@ -49,6 +49,17 @@
   "jest": {
     "transformIgnorePatterns": [
       "/node_modules/(?!axios)/"
+    ],
+    "collectCoverageFrom": [
+      "src/**/*.{js,jsx}",
+      "!src/index.js",
+      "!src/reportWebVitals.js", 
+      "!src/setupTests.js"
+    ],
+    "coverageReporters": [
+      "text",
+      "lcov",
+      "html"
     ]
   }
 }
