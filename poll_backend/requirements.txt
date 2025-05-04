@@ -9,3 +9,4 @@ pytest-env==0.8.2
 pytest-flask==1.2.0
 coverage==7.3.1
 flake8==6.1.0 
+python-dotenv
