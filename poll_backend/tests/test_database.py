@@ -6,6 +6,11 @@ from unittest.mock import patch, MagicMock
 # Set testing environment before importing app
 os.environ['FLASK_ENV'] = 'testing'
 os.environ['TESTING'] = 'True'
+os.environ['DB_HOST'] = 'localhost'
+os.environ['DB_USER'] = 'test_user'
+os.environ['DB_PASSWORD'] = 'test_password'
+os.environ['DB_NAME'] = 'test_poll_app'
+os.environ['JWT_SECRET_KEY'] = 'test_secret_key'
 
 # Add parent directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -44,9 +49,9 @@ class TestDatabaseOperations(unittest.TestCase):
         call_args = self.mock_connect.call_args[1]
         
         # Verify connection parameters
-        self.assertEqual(call_args['host'], 'localhost')
-        self.assertEqual(call_args['user'], 'root')
-        self.assertEqual(call_args['database'], 'poll_app')
+        self.assertEqual(call_args['host'], os.getenv('DB_HOST'))
+        self.assertEqual(call_args['user'], os.getenv('DB_USER'))
+        self.assertEqual(call_args['database'], os.getenv('DB_NAME'))
         self.assertIn('password', call_args)
         
         # Verify the returned connection is correct
