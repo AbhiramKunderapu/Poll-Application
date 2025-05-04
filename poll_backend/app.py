@@ -24,9 +24,9 @@ socketio = SocketIO(app, cors_allowed_origins="*")
 # Configure MySQL connection
 DB_CONFIG = {
     'host': 'localhost',
-    'user': 'root',
-    'password': 'abhi20062010',
-    'database': 'poll_app',
+    'user': 'DB_USER',
+    'password': 'DB_PASSWORD',
+    'database': 'DB_NAME',
     'auth_plugin': 'mysql_native_password',
     'use_pure': True,
     'autocommit': True
