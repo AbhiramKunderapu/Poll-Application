@@ -1,11 +1,16 @@
 import mysql.connector
 from mysql.connector import errorcode
+import os
+from dotenv import load_dotenv
+
+# Load environment variables
+load_dotenv()
 
 # Database configuration
 db_config = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': 'abhi20062010',
+    'host': os.getenv('DB_HOST'),
+    'user': os.getenv('DB_USER'),
+    'password': os.getenv('DB_PASSWORD'),
     'auth_plugin': 'mysql_native_password',
     'raise_on_warnings': True,
     'use_pure': True

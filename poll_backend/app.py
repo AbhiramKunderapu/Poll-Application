@@ -8,9 +8,13 @@ import datetime
 from functools import wraps
 from werkzeug.security import generate_password_hash, check_password_hash
 from flask_socketio import SocketIO
+from dotenv import load_dotenv
+
+# Load environment variables from .env file
+load_dotenv()
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'your_secret_key_here'  # Add a secret key for JWT
+app.config['SECRET_KEY'] = os.getenv('JWT_SECRET_KEY')  # Get secret key from environment variable
 # Configure CORS to allow requests from frontend
 CORS(app, resources={
     r"/*": {
@@ -21,12 +25,12 @@ CORS(app, resources={
 })
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Configure MySQL connection
+# Configure MySQL connection using environment variables
 DB_CONFIG = {
-    'host': 'localhost',
-    'user': 'root',
-    'password': 'abhi20062010',
-    'database': 'poll_app',
+    'host': os.getenv('DB_HOST'),
+    'user': os.getenv('DB_USER'),
+    'password': os.getenv('DB_PASSWORD'),
+    'database': os.getenv('DB_NAME'),
     'auth_plugin': 'mysql_native_password',
     'use_pure': True,
     'autocommit': True
